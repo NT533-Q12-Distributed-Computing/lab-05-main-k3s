@@ -1,0 +1,33 @@
+---
+# 🧩 Install Kubernetes Dashboard
+- name: Download arkade
+  get_url:
+    url: "https://github.com/alexellis/arkade/releases/latest/download/arkade"
+    dest: /usr/local/bin/arkade
+    mode: '0755'
+    force: yes
+
+- name: Install Dashboard
+  shell: arkade install kubernetes-dashboard --namespace kubernetes-dashboard
+  args:
+    creates: /var/lib/rancher/k3s/server/manifests/kubernetes-dashboard.yaml
+
+- name: Wait for Dashboard
+  shell: kubectl get svc -n kubernetes-dashboard | grep kong-proxy || true
+  register: dashboard_svc
+  until: "'kong-proxy' in dashboard_svc.stdout"
+  retries: 15
+  delay: 10
+
+- name: Expose Dashboard as NodePort
+  shell: kubectl -n kubernetes-dashboard patch svc kubernetes-dashboard-kong-proxy -p '{"spec":{"type":"NodePort"}}'
+  changed_when: false
+
+- name: Get NodePort
+  shell: kubectl -n kubernetes-dashboard get svc kubernetes-dashboard-kong-proxy -o jsonpath='{.spec.ports[0].nodePort}'
+  register: dashboard_port
+  changed_when: false
+
+- name: Display Dashboard URL
+  debug:
+    msg: "🌐 Dashboard: https://{{ ansible_host }}:{{ dashboard_port.stdout }}"

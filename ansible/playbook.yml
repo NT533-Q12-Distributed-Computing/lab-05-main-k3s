@@ -1,0 +1,41 @@
+---
+# ==========================================================
+# 🧩 LAB 05 - Distributed Computing
+# 🧰 Ansible Orchestration for K3s + Dashboard + OpenFaaS
+# ==========================================================
+
+- name: Prepare base packages
+  hosts: all
+  become: yes
+  roles:
+    - base
+
+- name: Install K3s master
+  hosts: master
+  become: yes
+  roles:
+    - k3s
+
+- name: Join K3s workers
+  hosts: worker
+  become: yes
+  roles:
+    - worker
+
+- name: Install Kubernetes Dashboard
+  hosts: master
+  become: yes
+  roles:
+    - dashboard
+
+- name: Install OpenFaaS
+  hosts: master
+  become: yes
+  roles:
+    - openfaas
+
+- name: Deploy sample function
+  hosts: master
+  become: yes
+  roles:
+    - function

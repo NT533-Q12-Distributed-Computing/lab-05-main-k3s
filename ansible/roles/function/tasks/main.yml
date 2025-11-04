@@ -1,0 +1,21 @@
+# ==========================================================
+# 🧠 ROLE: Deploy sample function (figlet)
+# ==========================================================
+
+---
+
+- name: Deploy figlet function
+  ansible.builtin.shell: >
+    faas-cli store deploy figlet --gateway http://127.0.0.1:8080
+  ignore_errors: true
+
+- name: Test figlet function
+  ansible.builtin.shell: |
+    GW=$(kubectl -n openfaas get svc gateway -o jsonpath='{.spec.ports[0].nodePort}')
+    curl -s http://127.0.0.1:${GW}/function/figlet -d "UIT"
+  register: test_out
+  ignore_errors: true
+
+- name: Show test result
+  ansible.builtin.debug:
+    msg: "✅ Function output: {{ test_out.stdout | default('N/A') }}"

@@ -1,0 +1,31 @@
+# ==========================================================
+# ⚙️ ROLE: Install OpenFaaS via Arkade
+# ==========================================================
+
+- name: Install OpenFaaS
+  shell: arkade install openfaas --set basicAuth=false --set gateway.replicas=1
+  args:
+    creates: /var/lib/rancher/k3s/server/manifests/openfaas.yaml
+
+- name: Install faas-cli
+  shell: arkade get faas-cli
+  args:
+    creates: /usr/local/bin/faas-cli
+
+- name: Wait for Gateway
+  shell: kubectl rollout status -n openfaas deploy/gateway
+  retries: 20
+  delay: 10
+
+- name: Expose Gateway as NodePort
+  shell: kubectl -n openfaas patch svc gateway -p '{"spec":{"type":"NodePort"}}'
+  changed_when: false
+
+- name: Get Gateway NodePort
+  shell: kubectl -n openfaas get svc gateway -o jsonpath='{.spec.ports[0].nodePort}'
+  register: faas_port
+  changed_when: false
+
+- name: Show Gateway URL
+  debug:
+    msg: "🌐 OpenFaaS Gateway: http://{{ ansible_host }}:{{ faas_port.stdout }}"

@@ -1,0 +1,51 @@
+# =====================================
+# Terraform & Infrastructure Files
+# =====================================
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfvars
+terraform.tfvars.json
+crash.log
+
+# Ignore AWS provider binaries
+terraform-provider-aws_*
+*.exe
+
+# =====================================
+# Ansible cache & temp files
+# =====================================
+*.retry
+*.log
+*.bak
+__pycache__/
+*.pyc
+
+# =====================================
+# SSH keys / private credentials
+# =====================================
+*.pem
+*.key
+*.pub
+*.crt
+*.csr
+key/
+
+# =====================================
+# System & Editor files
+# =====================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# =====================================
+# CMD / Scripts compiled outputs
+# =====================================
+*.cmd
+*.bat
+*.sh~
