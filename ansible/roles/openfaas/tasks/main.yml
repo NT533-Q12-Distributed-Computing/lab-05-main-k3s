@@ -1,31 +1,132 @@
-# ==========================================================
-# ⚙️ ROLE: Install OpenFaaS via Arkade
-# ==========================================================
+---
+# ============================================================
+# OpenFaaS Installation for K3s (REPRODUCES YOUR MANUAL STEPS)
+# ============================================================
 
-- name: Install OpenFaaS
-  shell: arkade install openfaas --set basicAuth=false --set gateway.replicas=1
+# 0) Copy & fix kubeconfig
+- name: Copy k3s kubeconfig to user folder
+  shell: |
+    mkdir -p ~/.kube
+    sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+    sudo chown $(whoami):$(whoami) ~/.kube/config
   args:
-    creates: /var/lib/rancher/k3s/server/manifests/openfaas.yaml
+    executable: /bin/bash
 
-- name: Install faas-cli
-  shell: arkade get faas-cli
+- name: Patch kubeconfig to use INTERNAL IP instead of 127.0.0.1
+  shell: |
+    INTERNAL_IP=$(hostname -I | awk '{print $1}')
+    sed -i "s/127.0.0.1/${INTERNAL_IP}/g" ~/.kube/config
   args:
-    creates: /usr/local/bin/faas-cli
+    executable: /bin/bash
 
-- name: Wait for Gateway
-  shell: kubectl rollout status -n openfaas deploy/gateway
-  retries: 20
-  delay: 10
 
-- name: Expose Gateway as NodePort
-  shell: kubectl -n openfaas patch svc gateway -p '{"spec":{"type":"NodePort"}}'
-  changed_when: false
+# 1) Ensure openfaas-fn namespace exists
+- name: Ensure openfaas-fn namespace exists
+  shell: |
+    kubectl get ns openfaas-fn >/dev/null 2>&1 || kubectl create namespace openfaas-fn
+  args:
+    executable: /bin/bash
 
-- name: Get Gateway NodePort
-  shell: kubectl -n openfaas get svc gateway -o jsonpath='{.spec.ports[0].nodePort}'
-  register: faas_port
-  changed_when: false
 
-- name: Show Gateway URL
-  debug:
-    msg: "🌐 OpenFaaS Gateway: http://{{ ansible_host }}:{{ faas_port.stdout }}"
+# 2) Install Helm
+- name: Install Helm v3
+  shell: |
+    curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+  args:
+    executable: /bin/bash
+
+
+# 3) Add OpenFaaS Helm repo
+- name: Add OpenFaaS Helm repo
+  shell: |
+    helm repo add openfaas https://openfaas.github.io/faas-netes || true
+    helm repo update
+  args:
+    executable: /bin/bash
+
+
+# 4) Install OpenFaaS exactly like your manual commands
+- name: Install OpenFaaS via Helm (minimal edition)
+  shell: |
+    helm upgrade --install openfaas openfaas/openfaas \
+      --namespace openfaas \
+      --create-namespace \
+      --set basic_auth=true \
+      --set functionNamespace=openfaas-fn \
+      --set gateway.replicas=1 \
+      --set queueWorker.replicas=1 \
+      --set operator.create=false \
+      --set autoscaler.create=false \
+      --set ingressOperator.create=false \
+      --set prometheus.create=false \
+      --set alertmanager.create=false \
+      --set serviceType=NodePort
+  args:
+    executable: /bin/bash
+
+
+# 5) REPLACE secret in openfaas-fn
+- name: Copy basic-auth secret to openfaas-fn (force replace)
+  shell: |
+    kubectl delete secret basic-auth -n openfaas-fn --ignore-not-found
+    kubectl get secret basic-auth -n openfaas -o yaml \
+      | sed 's/namespace: openfaas/namespace: openfaas-fn/' \
+      | kubectl apply -f -
+  args:
+    executable: /bin/bash
+
+
+# 6) Restart deployments
+- name: Restart gateway
+  shell: kubectl -n openfaas rollout restart deploy/gateway
+  args:
+    executable: /bin/bash
+
+- name: Restart queue-worker
+  shell: kubectl -n openfaas rollout restart deploy/queue-worker
+  args:
+    executable: /bin/bash
+
+
+# 7) Patch NodePort (idempotent)
+- name: Ensure gateway is NodePort
+  shell: |
+    kubectl patch svc gateway -n openfaas -p '{"spec":{"type":"NodePort"}}'
+  args:
+    executable: /bin/bash
+
+
+# 8) Wait for gateway to be READY
+- name: Wait for gateway rollout
+  shell: |
+    kubectl rollout status deploy/gateway -n openfaas --timeout=180s
+  args:
+    executable: /bin/bash
+
+
+# 9) Read NodePort
+- name: Get OpenFaaS Gateway NodePort
+  shell: |
+    kubectl get svc gateway -n openfaas -o jsonpath='{.spec.ports[0].nodePort}'
+  register: gateway_port
+  args:
+    executable: /bin/bash
+
+
+# 10) Read password
+- name: Read OpenFaaS admin password
+  shell: |
+    kubectl -n openfaas get secret basic-auth -o jsonpath="{.data.basic-auth-password}" | base64 --decode
+  register: openfaas_password
+  args:
+    executable: /bin/bash
+
+
+# 11) Print output
+- debug:
+    msg:
+      - "🎉 OpenFaaS installed successfully!"
+      - "🌐 Gateway URL: http://{{ ansible_host }}:{{ gateway_port.stdout }}"
+      - "🔑 User: admin"
+      - "🔑 Pass: {{ openfaas_password.stdout }}"
+      - "🚀 Test API: curl -u admin:{{ openfaas_password.stdout }} http://{{ ansible_host }}:{{ gateway_port.stdout }}/system/functions"

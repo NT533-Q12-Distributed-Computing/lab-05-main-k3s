@@ -1,8 +1,8 @@
-# ==========================================================
-# ROLE: K3s Installation (Master + Worker)
-# ==========================================================
+---
+# ======================================================
+# ROLE: Install K3s Master
+# ======================================================
 
-# --- Cài đặt K3s trên Master ---
 - name: Detect private IP of master
   shell: hostname -I | awk '{print $1}'
   register: master_ip

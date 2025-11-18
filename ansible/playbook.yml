@@ -1,41 +1,59 @@
 ---
-# ==========================================================
-# 🧩 LAB 05 - Distributed Computing
-# 🧰 Ansible Orchestration for K3s + Dashboard + OpenFaaS
-# ==========================================================
-
+# ================================================================
+# 1️⃣ Base setup
+# ================================================================
 - name: Prepare base packages
   hosts: all
-  become: yes
+  become: true
   roles:
     - base
 
+# ================================================================
+# 2️⃣ Install K3s master
+# ================================================================
 - name: Install K3s master
   hosts: master
-  become: yes
+  become: true
+  serial: 1
   roles:
     - k3s
 
+# ================================================================
+# 3️⃣ Join workers
+# ================================================================
 - name: Join K3s workers
   hosts: worker
-  become: yes
+  become: true
   roles:
     - worker
 
+# ================================================================
+# 4️⃣ Kubernetes Dashboard
+# ================================================================
 - name: Install Kubernetes Dashboard
   hosts: master
-  become: yes
+  become: true
   roles:
     - dashboard
 
+# ================================================================
+# 5️⃣ Install OpenFaaS
+# ================================================================
 - name: Install OpenFaaS
   hosts: master
-  become: yes
+  become: true
+  gather_facts: true
   roles:
     - openfaas
+  tags: ["openfaas"]
 
-- name: Deploy sample function
+# ================================================================
+# 6️⃣ Deploy Functions
+# ================================================================
+- name: Deploy microservices functions (Python → Node → Go)
   hosts: master
-  become: yes
+  become: true
+  gather_facts: true
   roles:
     - function
+  tags: ["function"]
