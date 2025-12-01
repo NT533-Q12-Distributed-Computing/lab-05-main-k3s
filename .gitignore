@@ -30,7 +30,11 @@ __pycache__/
 *.pub
 *.crt
 *.csr
-key/
+
+# Ignore entire key folder except .gitkeep
+key/*
+!key/.gitkeep
+
 
 # =====================================
 # System & Editor files
