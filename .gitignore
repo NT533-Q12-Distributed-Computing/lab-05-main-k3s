@@ -9,9 +9,16 @@ terraform.tfvars
 terraform.tfvars.json
 crash.log
 
-# Ignore AWS provider binaries
+# AWS provider binaries
 terraform-provider-aws_*
 *.exe
+
+# Local override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 
 # =====================================
 # Ansible cache & temp files
@@ -21,23 +28,35 @@ terraform-provider-aws_*
 *.bak
 __pycache__/
 *.pyc
+*.cache
+*.facts
+
 
 # =====================================
-# SSH keys / private credentials
+# Sensitive files (DO NOT COMMIT)
 # =====================================
 *.pem
 *.key
 *.pub
 *.crt
 *.csr
+*.p12
 
-# Ignore entire key folder except .gitkeep
+# Ignore entire key folder except placeholder
 key/*
 !key/.gitkeep
 
 
 # =====================================
-# System & Editor files
+# Kubernetes config
+# =====================================
+kubeconfig
+.kube/
+k3sup/
+
+
+# =====================================
+# System / Editor / OS junk
 # =====================================
 .DS_Store
 Thumbs.db
@@ -47,9 +66,10 @@ Thumbs.db
 *.swo
 *.tmp
 
+
 # =====================================
-# CMD / Scripts compiled outputs
+# Command / script backup
 # =====================================
-*.cmd
-*.bat
+*.cmd~
 *.sh~
+*.bak
